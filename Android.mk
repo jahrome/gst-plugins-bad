@@ -6,4 +6,5 @@ include $(CLEAR_VARS)
 
 include $(GST_PLUGINS_BAD_TOP)/sys/fbdev/Android.mk
 include $(GST_PLUGINS_BAD_TOP)/gst/selector/Android.mk
+include $(GST_PLUGINS_BAD_TOP)/ext/soundtouch/Android.mk
 

@@ -18,7 +18,7 @@
  */
 
 #define FLOAT_SAMPLES 1
-#include <soundtouch/SoundTouch.h>
+#include "SoundTouch.h"
 /* FIXME: workaround for SoundTouch.h of version 1.3.1 defining those
  * variables while it shouldn't. */
 #undef VERSION

@@ -18,7 +18,7 @@
  */
 
 #define FLOAT_SAMPLES 1
-#include <soundtouch/BPMDetect.h>
+#include "BPMDetect.h"
 /* FIXME: workaround for SoundTouch.h of version 1.3.1 defining those
  * variables while it shouldn't. */
 #undef VERSION
@@ -47,7 +47,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_bpm_detect_debug);
 struct _GstBPMDetectPrivate
 {
   gfloat bpm;
-  BPMDetect *detect;
+  soundtouch::BPMDetect *detect;
 };
 
 #define ALLOWED_CAPS \
@@ -198,7 +198,7 @@ gst_bpm_detect_transform_ip (GstBaseTransform * trans, GstBuffer * in)
     }
 
     bpm_detect->priv->detect =
-        new BPMDetect (filter->format.channels, filter->format.rate);
+        new soundtouch::BPMDetect (filter->format.channels, filter->format.rate);
   }
 
   nsamples = GST_BUFFER_SIZE (in) / (4 * filter->format.channels);
