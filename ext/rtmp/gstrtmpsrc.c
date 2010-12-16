@@ -537,6 +537,7 @@ gst_rtmp_src_start (GstBaseSrc * basesrc)
   uri_copy = g_strdup (src->uri);
   src->rtmp = RTMP_Alloc ();
   RTMP_Init (src->rtmp);
+  src->rtmp->Link.lFlags |= RTMP_LF_LIVE;
   if (!RTMP_SetupURL (src->rtmp, uri_copy)) {
     GST_ELEMENT_ERROR (src, RESOURCE, OPEN_READ, NULL,
         ("Failed to setup URL '%s'", src->uri));

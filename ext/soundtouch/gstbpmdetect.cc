@@ -17,10 +17,8 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
+#define FLOAT_SAMPLES 1
+#include "BPMDetect.h"
 /* FIXME: workaround for SoundTouch.h of version 1.3.1 defining those
  * variables while it shouldn't. */
 #undef VERSION
@@ -31,8 +29,9 @@
 #undef PACKAGE_BUGREPORT
 #undef PACKAGE
 
-#define FLOAT_SAMPLES 1
-#include <soundtouch/BPMDetect.h>
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <gst/audio/audio.h>
 #include <gst/audio/gstaudiofilter.h>
@@ -48,11 +47,7 @@ GST_DEBUG_CATEGORY_STATIC (gst_bpm_detect_debug);
 struct _GstBPMDetectPrivate
 {
   gfloat bpm;
-#ifdef HAVE_SOUNDTOUCH_1_4
-    soundtouch::BPMDetect * detect;
-#else
-  BPMDetect *detect;
-#endif
+  soundtouch::BPMDetect *detect;
 };
 
 #define ALLOWED_CAPS \
@@ -201,14 +196,9 @@ gst_bpm_detect_transform_ip (GstBaseTransform * trans, GstBuffer * in)
       GST_ERROR_OBJECT (bpm_detect, "No channels or rate set yet");
       return GST_FLOW_ERROR;
     }
-#ifdef HAVE_SOUNDTOUCH_1_4
+
     bpm_detect->priv->detect =
-        new soundtouch::BPMDetect (filter->format.channels,
-        filter->format.rate);
-#else
-    bpm_detect->priv->detect =
-        new BPMDetect (filter->format.channels, filter->format.rate);
-#endif
+        new soundtouch::BPMDetect (filter->format.channels, filter->format.rate);
   }
 
   nsamples = GST_BUFFER_SIZE (in) / (4 * filter->format.channels);
@@ -217,25 +207,13 @@ gst_bpm_detect_transform_ip (GstBaseTransform * trans, GstBuffer * in)
    * data but our buffer data shouldn't be modified.
    */
   if (filter->format.channels == 1) {
-    gfloat *inbuf = (gfloat *) GST_BUFFER_DATA (in);
-
-    while (nsamples > 0) {
-      bpm_detect->priv->detect->inputSamples (inbuf, MIN (nsamples, 2048));
-      nsamples -= 2048;
-      inbuf += 2048;
-    }
+    bpm_detect->priv->detect->inputSamples ((gfloat *) GST_BUFFER_DATA (in),
+        nsamples);
   } else {
-    gfloat *inbuf, *intmp, data[2 * 2048];
-
-    inbuf = (gfloat *) GST_BUFFER_DATA (in);
-    intmp = data;
-
-    while (nsamples > 0) {
-      memcpy (intmp, inbuf, sizeof (gfloat) * 2 * MIN (nsamples, 2048));
-      bpm_detect->priv->detect->inputSamples (intmp, MIN (nsamples, 2048));
-      nsamples -= 2048;
-      inbuf += 2048 * 2;
-    }
+    gfloat *data =
+        (gfloat *) g_memdup (GST_BUFFER_DATA (in), GST_BUFFER_SIZE (in));
+    bpm_detect->priv->detect->inputSamples (data, nsamples);
+    g_free (data);
   }
 
   bpm = bpm_detect->priv->detect->getBpm ();
