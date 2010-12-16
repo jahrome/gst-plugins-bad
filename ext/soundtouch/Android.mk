@@ -25,7 +25,7 @@ LOCAL_MODULE:= libgstsoundtouch
 LOCAL_C_INCLUDES := 			\
 	$(LOCAL_PATH)			\
 	$(GST_PLUGINS_BASE_TOP)		\
-	$(GST_PLUGINS_BASE_TOP)/gst-libs\
+	external/gst-plugins-base/gst-libs\
 	$(GST_PLUGINS_BASE_TOP)/gst-libs/gst/audio/android\
 	$(GST_PLUGINS_BAD_TOP)		\
 	$(GST_PLUGINS_BAD_TOP)/android	\
