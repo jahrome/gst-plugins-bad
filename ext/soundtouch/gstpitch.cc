@@ -17,10 +17,8 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
+#define FLOAT_SAMPLES 1
+#include "SoundTouch.h"
 /* FIXME: workaround for SoundTouch.h of version 1.3.1 defining those
  * variables while it shouldn't. */
 #undef VERSION
@@ -31,8 +29,9 @@
 #undef PACKAGE_BUGREPORT
 #undef PACKAGE
 
-#define FLOAT_SAMPLES 1
-#include <soundtouch/SoundTouch.h>
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
 
 #include <gst/gst.h>
 #include <gst/controller/gstcontroller.h>
