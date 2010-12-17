@@ -21,8 +21,7 @@ LOCAL_MODULE:= libgstfaad
 LOCAL_C_INCLUDES := 			\
 	$(LOCAL_PATH)			\
 	$(GST_PLUGINS_BASE_TOP)		\
-	$(GST_PLUGINS_BASE_TOP)/gst-libs\
-	$(GST_PLUGINS_BASE_TOP)/gst-libs/gst/audio/android\
+	external/gst-plugins-base/gst-libs\
 	$(GST_PLUGINS_BAD_TOP)		\
 	$(GST_PLUGINS_BAD_TOP)/android	\
 	external/gstreamer		\
@@ -40,6 +39,7 @@ LOCAL_C_INCLUDES := 			\
 	external/faad2-2.7/include
 
 LOCAL_CFLAGS := \
-	-DHAVE_CONFIG_H
+	-DHAVE_CONFIG_H			\
+	-DFAAD_IS_NEAAC
 
 include $(BUILD_PLUGIN_LIBRARY)
