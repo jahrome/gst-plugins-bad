@@ -48,9 +48,9 @@ static GstStaticPadTemplate srctemplate = GST_STATIC_PAD_TEMPLATE ("src",
 GST_DEBUG_CATEGORY_STATIC (h264_parse_debug);
 #define GST_CAT_DEFAULT h264_parse_debug
 
-#define DEFAULT_SPLIT_PACKETIZED     FALSE
+#define DEFAULT_SPLIT_PACKETIZED     TRUE
 #define DEFAULT_ACCESS_UNIT          FALSE
-#define DEFAULT_OUTPUT_FORMAT        GST_H264_PARSE_FORMAT_INPUT
+#define DEFAULT_OUTPUT_FORMAT        GST_H264_PARSE_FORMAT_BYTE
 #define DEFAULT_CONFIG_INTERVAL      (0)
 
 enum
@@ -968,7 +968,7 @@ gst_h264_parse_init (GstH264Parse * h264parse, GstH264ParseClass * g_class)
   h264parse->interval = DEFAULT_CONFIG_INTERVAL;
   h264parse->last_report = GST_CLOCK_TIME_NONE;
 
-  h264parse->format = GST_H264_PARSE_FORMAT_INPUT;
+  h264parse->format = DEFAULT_OUTPUT_FORMAT;
 
   gst_h264_parse_reset (h264parse);
 }
@@ -2697,7 +2697,7 @@ static gboolean
 plugin_init (GstPlugin * plugin)
 {
   return gst_element_register (plugin, "legacyh264parse",
-      GST_RANK_NONE, GST_TYPE_H264PARSE);
+      GST_RANK_PRIMARY+1, GST_TYPE_H264PARSE);
 }
 
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
