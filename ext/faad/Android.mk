@@ -36,7 +36,7 @@ LOCAL_C_INCLUDES := 			\
 	external/glib/gobject	  	\
 	external/soundtouch/include	\
 	external/glib/gthread		\
-	external/faad2-2.7/include
+	external/faad2/include
 
 LOCAL_CFLAGS := \
 	-DHAVE_CONFIG_H			\

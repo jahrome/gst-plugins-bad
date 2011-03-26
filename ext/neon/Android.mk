@@ -37,7 +37,7 @@ LOCAL_C_INCLUDES := 			\
 	external/glib/gobject	  	\
 	external/soundtouch/include	\
 	external/glib/gthread		\
-	external/neon-0.29.3/src
+	external/neon/src
 
 LOCAL_CFLAGS := \
 	-DHAVE_CONFIG_H
