@@ -72,6 +72,7 @@ GST_PLUGINS_BAD_BUILT_SOURCES := \
 	gst/mpegdemux/Android.mk \
 	gst/ivfparse/Android.mk \
 	ext/neon/Android.mk \
+	ext/rtmp/Android.mk \
 	ext/faad/Android.mk
 
 GST_PLUGINS_BAD_BUILT_SOURCES := $(patsubst %, $(abspath $(GST_PLUGINS_BAD_TOP))/%, $(GST_PLUGINS_BAD_BUILT_SOURCES))
@@ -165,3 +166,4 @@ CONFIGURE_TARGETS += gst-plugins-bad-configure
 -include $(GST_PLUGINS_BAD_TOP)/gst/mpegdemux/Android.mk
 -include $(GST_PLUGINS_BAD_TOP)/gst/ivfparse/Android.mk
 -include $(GST_PLUGINS_BAD_TOP)/ext/neon/Android.mk
+-include $(GST_PLUGINS_BAD_TOP)/ext/rtmp/Android.mk
