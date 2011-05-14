@@ -43,8 +43,6 @@
 #include "config.h"
 #endif
 
-#include <glib/gi18n-lib.h>
-
 #include "gstrtmpsrc.h"
 
 #include <stdio.h>
