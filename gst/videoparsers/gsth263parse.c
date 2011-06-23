@@ -110,7 +110,7 @@ gst_h263_parse_start (GstBaseParse * parse)
 
   h263parse->state = PARSING;
 
-  gst_base_parse_set_min_frame_size (parse, 512);
+  gst_base_parse_set_min_frame_size (parse, 4);
 
   return TRUE;
 }
@@ -208,6 +208,10 @@ gst_h263_parse_set_src_caps (GstH263Parse * h263parse,
   }
   gst_caps_set_simple (caps, "framerate", GST_TYPE_FRACTION, fr_num, fr_denom,
       NULL);
+
+  if (params->width && params->height)
+    gst_caps_set_simple (caps, "width", G_TYPE_INT, params->width,
+        "height", G_TYPE_INT, params->height, NULL);
 
   if (h263parse->state == GOT_HEADER) {
     gst_caps_set_simple (caps,
@@ -309,8 +313,8 @@ gst_h263_parse_check_valid_frame (GstBaseParse * parse,
   return TRUE;
 
 more:
-  /* Ask for 1024 bytes more - this is an arbitrary choice */
-  gst_base_parse_set_min_frame_size (parse, GST_BUFFER_SIZE (buffer) + 1024);
+  /* ask for best next available */
+  *framesize = G_MAXUINT;
 
   *skipsize = psc_pos;
 

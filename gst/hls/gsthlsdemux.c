@@ -406,11 +406,15 @@ gst_hls_demux_src_query (GstPad * pad, GstQuery * query)
   switch (query->type) {
     case GST_QUERY_DURATION:{
       GstClockTime duration;
+      GstFormat fmt;
 
-      duration = gst_m3u8_client_get_duration (hlsdemux->client);
-      if (duration) {
-        gst_query_set_duration (query, GST_FORMAT_TIME, duration);
-        ret = TRUE;
+      gst_query_parse_duration (query, &fmt, NULL);
+      if (fmt == GST_FORMAT_TIME) {
+        duration = gst_m3u8_client_get_duration (hlsdemux->client);
+        if (GST_CLOCK_TIME_IS_VALID (duration) && duration > 0) {
+          gst_query_set_duration (query, GST_FORMAT_TIME, duration);
+          ret = TRUE;
+        }
       }
       break;
     }
@@ -422,9 +426,25 @@ gst_hls_demux_src_query (GstPad * pad, GstQuery * query)
         ret = TRUE;
       }
       break;
+    case GST_QUERY_SEEKING:{
+      GstFormat fmt;
+      gint stop = -1;
+
+      gst_query_parse_seeking (query, &fmt, NULL, NULL, NULL);
+      if (fmt == GST_FORMAT_TIME) {
+        GstClockTime duration;
+
+        duration = gst_m3u8_client_get_duration (hlsdemux->client);
+        if (GST_CLOCK_TIME_IS_VALID (duration) && duration > 0)
+          stop = duration;
+      }
+      gst_query_set_seeking (query, fmt, FALSE, 0, stop);
+      ret = TRUE;
+      break;
+    }
     default:
       /* Don't fordward queries upstream because of the special nature of this
-       * "demuxer", which relies on the upstream element only to be feed with the
+       * "demuxer", which relies on the upstream element only to be fed with the
        * first playlist */
       break;
   }
@@ -995,12 +1015,11 @@ gst_hls_demux_get_next_fragment (GstHLSDemux * demux, gboolean retry)
   GstBuffer *buf;
   guint avail;
   const gchar *next_fragment_uri;
+  GstClockTime duration;
   gboolean discont;
 
-  next_fragment_uri =
-      gst_m3u8_client_get_next_fragment (demux->client, &discont);
-
-  if (!next_fragment_uri) {
+  if (!gst_m3u8_client_get_next_fragment (demux->client, &discont,
+          &next_fragment_uri, &duration)) {
     GST_INFO_OBJECT (demux, "This playlist doesn't contain more fragments");
     demux->end_of_playlist = TRUE;
     GST_TASK_SIGNAL (demux->task);
@@ -1014,6 +1033,7 @@ gst_hls_demux_get_next_fragment (GstHLSDemux * demux, gboolean retry)
 
   avail = gst_adapter_available (demux->download);
   buf = gst_adapter_take_buffer (demux->download, avail);
+  GST_BUFFER_DURATION (buf) = duration;
 
   if (G_UNLIKELY (demux->input_caps == NULL)) {
     demux->input_caps = gst_type_find_helper_for_buffer (NULL, buf, NULL);

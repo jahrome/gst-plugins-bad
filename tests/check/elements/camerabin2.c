@@ -120,14 +120,9 @@ gst_test_camera_src_base_init (gpointer g_class)
 static void
 gst_test_camera_src_class_init (GstTestCameraSrcClass * klass)
 {
-  GObjectClass *gobject_class;
-  GstElementClass *gstelement_class;
   GstBaseCameraSrcClass *gstbasecamera_class;
 
-  gobject_class = G_OBJECT_CLASS (klass);
-  gstelement_class = GST_ELEMENT_CLASS (klass);
   gstbasecamera_class = GST_BASE_CAMERA_SRC_CLASS (klass);
-
   gstbasecamera_class->set_mode = gst_test_camera_src_set_mode;
 }
 
@@ -169,6 +164,7 @@ gst_test_camera_src_init (GstTestCameraSrc * self,
 static GstElement *camera;
 static guint bus_source;
 static GMainLoop *main_loop;
+static gint capture_count = 0;
 guint32 test_id = 0;
 
 static GstBuffer *preview_buffer;
@@ -192,7 +188,7 @@ validate_taglist_foreach (const GstTagList * list, const gchar * tag,
   fail_if (val1 == NULL);
   fail_if (val2 == NULL);
 
-  fail_unless (gst_value_can_intersect (val1, val2));
+  fail_unless (gst_value_compare (val1, val2) == GST_VALUE_EQUAL);
 }
 
 
@@ -348,8 +344,8 @@ setup_wrappercamerabinsrc_videotestsrc (void)
       320, "height", G_TYPE_INT, 240, NULL);
 
   g_object_set (G_OBJECT (testsrc), "is-live", TRUE, "peer-alloc", FALSE, NULL);
-  g_object_set (G_OBJECT (src), "video-src", testsrc, NULL);
-  g_object_set (G_OBJECT (camera), "camera-src", src, "preview-caps",
+  g_object_set (G_OBJECT (src), "video-source", testsrc, NULL);
+  g_object_set (G_OBJECT (camera), "camera-source", src, "preview-caps",
       preview_caps, NULL);
   gst_object_unref (src);
   gst_object_unref (testsrc);
@@ -364,6 +360,7 @@ setup_wrappercamerabinsrc_videotestsrc (void)
   gst_object_unref (bus);
 
   tags_found = NULL;
+  capture_count = 0;
 
   GST_INFO ("init finished");
 }
@@ -749,14 +746,6 @@ GST_START_TEST (test_image_video_cycle)
   if (!camera)
     return;
 
-  /* set filepaths for image and videos */
-  g_object_set (camera, "mode", 1, NULL);
-  g_object_set (camera, "location", make_test_file_name (IMAGE_FILENAME, -1),
-      NULL);
-  g_object_set (camera, "mode", 2, NULL);
-  g_object_set (camera, "location", make_test_file_name (VIDEO_FILENAME, -1),
-      NULL);
-
   if (gst_element_set_state (GST_ELEMENT (camera), GST_STATE_PLAYING) ==
       GST_STATE_CHANGE_FAILURE) {
     GST_WARNING ("setting camerabin to PLAYING failed");
@@ -772,6 +761,8 @@ GST_START_TEST (test_image_video_cycle)
 
     /* take a picture */
     g_object_set (camera, "mode", 1, NULL);
+    g_object_set (camera, "location", make_test_file_name (IMAGE_FILENAME, i),
+        NULL);
     g_signal_emit_by_name (camera, "start-capture", NULL);
     g_timeout_add_seconds (3, (GSourceFunc) g_main_loop_quit, main_loop);
     g_main_loop_run (main_loop);
@@ -780,6 +771,8 @@ GST_START_TEST (test_image_video_cycle)
 
     /* now go to video */
     g_object_set (camera, "mode", 2, NULL);
+    g_object_set (camera, "location", make_test_file_name (VIDEO_FILENAME, i),
+        NULL);
     g_signal_emit_by_name (camera, "start-capture", NULL);
     g_timeout_add_seconds (VIDEO_DURATION, (GSourceFunc) g_main_loop_quit,
         main_loop);
@@ -1009,7 +1002,7 @@ GST_START_TEST (test_supported_caps)
     return;
 
   src = g_object_new (GST_TYPE_TEST_CAMERA_SRC, NULL);
-  g_object_set (camera, "camera-src", src, NULL);
+  g_object_set (camera, "camera-source", src, NULL);
   gst_object_unref (src);
 
   if (gst_element_set_state (GST_ELEMENT (camera), GST_STATE_PLAYING) ==
@@ -1238,38 +1231,69 @@ GST_START_TEST (test_video_custom_filter)
 
 GST_END_TEST;
 
+#define LOCATION_SWITCHING_FILENAMES_COUNT 5
 
-GST_START_TEST (test_image_custom_encoder_muxer)
+static gboolean
+image_location_switch_do_capture (gpointer data)
 {
-  GstElement *enc;
-  GstElement *mux;
-  GstElement *test;
-  GstPad *pad;
-  gint enc_probe_counter = 0;
-  gint mux_probe_counter = 0;
+  gchar **filenames = data;
+  if (capture_count >= LOCATION_SWITCHING_FILENAMES_COUNT) {
+    g_main_loop_quit (main_loop);
+  }
+
+  g_object_set (camera, "location", filenames[capture_count], NULL);
+  g_signal_emit_by_name (camera, "start-capture", NULL);
+  capture_count++;
+  return FALSE;
+}
+
+static void
+image_location_switch_readyforcapture (GObject * obj, GParamSpec * pspec,
+    gpointer user_data)
+{
+  gboolean ready;
+
+  g_object_get (obj, "ready-for-capture", &ready, NULL);
+  if (ready) {
+    g_idle_add (image_location_switch_do_capture, user_data);
+  }
+};
+
+/*
+ * Tests that setting the location and then doing an image
+ * capture will set this capture resulting filename to the
+ * correct location.
+ *
+ * There was a bug in which setting the location, issuing a capture 
+ * and then setting a new location would cause this capture to have
+ * the location set after this capture. This test should prevent it
+ * from happening again.
+ */
+GST_START_TEST (test_image_location_switching)
+{
+  gchar *filenames[LOCATION_SWITCHING_FILENAMES_COUNT + 1];
+  gint i;
+  glong notify_id;
+  GstCaps *caps;
+  GstElement *src;
 
   if (!camera)
     return;
 
-  enc = gst_element_factory_make ("pngenc", "enc");
-  mux = gst_element_factory_make ("identity", "mux");
+  g_object_get (camera, "camera-source", &src, NULL);
 
-  g_object_set (enc, "snapshot", FALSE, NULL);
+  for (i = 0; i < LOCATION_SWITCHING_FILENAMES_COUNT; i++) {
+    filenames[i] =
+        g_strdup (make_test_file_name ("image-switching-filename-test", i));
+  }
+  filenames[LOCATION_SWITCHING_FILENAMES_COUNT] = NULL;
 
-  pad = gst_element_get_static_pad (enc, "src");
-  gst_pad_add_buffer_probe (pad, (GCallback) filter_buffer_count,
-      &enc_probe_counter);
-  gst_object_unref (pad);
-
-  pad = gst_element_get_static_pad (mux, "src");
-  gst_pad_add_buffer_probe (pad, (GCallback) filter_buffer_count,
-      &mux_probe_counter);
-  gst_object_unref (pad);
-
-  /* set still image mode and filters */
-  g_object_set (camera, "mode", 1,
-      "location", make_test_file_name (IMAGE_FILENAME, -1),
-      "image-capture-encoder", enc, "image-capture-muxer", mux, NULL);
+  /* set still image mode */
+  g_object_set (camera, "mode", 1, NULL);
+  caps = gst_caps_new_simple ("video/x-raw-rgb", "width", G_TYPE_INT,
+      800, "height", G_TYPE_INT, 600, NULL);
+  g_object_set (camera, "image-capture-caps", caps, NULL);
+  gst_caps_unref (caps);
 
   if (gst_element_set_state (GST_ELEMENT (camera), GST_STATE_PLAYING) ==
       GST_STATE_CHANGE_FAILURE) {
@@ -1278,34 +1302,31 @@ GST_START_TEST (test_image_custom_encoder_muxer)
     gst_object_unref (camera);
     camera = NULL;
   }
-  GST_INFO ("starting capture");
   fail_unless (camera != NULL);
+  GST_INFO ("starting capture");
 
-  g_object_get (camera, "image-capture-encoder", &test, NULL);
-  fail_unless (test == enc);
-  g_object_get (camera, "image-capture-muxer", &test, NULL);
-  fail_unless (test == mux);
+  notify_id = g_signal_connect (G_OBJECT (src),
+      "notify::ready-for-capture",
+      G_CALLBACK (image_location_switch_readyforcapture), filenames);
 
-  g_signal_emit_by_name (camera, "start-capture", NULL);
-
-  g_timeout_add_seconds (3, (GSourceFunc) g_main_loop_quit, main_loop);
+  g_idle_add (image_location_switch_do_capture, filenames);
   g_main_loop_run (main_loop);
 
-  /* check that we got a preview image */
-  check_preview_image ();
-
+  g_usleep (G_USEC_PER_SEC * 3);
   gst_element_set_state (GST_ELEMENT (camera), GST_STATE_NULL);
-  check_file_validity (IMAGE_FILENAME, 0, NULL, 0, 0, NO_AUDIO);
 
-  fail_unless (enc_probe_counter == 1);
-  fail_unless (mux_probe_counter == 1);
-  gst_object_unref (enc);
-  gst_object_unref (mux);
+  for (i = 0; i < LOCATION_SWITCHING_FILENAMES_COUNT; i++) {
+    GST_INFO ("Checking for file: %s", filenames[i]);
+    fail_unless (g_file_test (filenames[i], G_FILE_TEST_IS_REGULAR));
+  }
+
+  for (i = 0; i < LOCATION_SWITCHING_FILENAMES_COUNT; i++) {
+    g_free (filenames[i]);
+  }
+  g_signal_handler_disconnect (src, notify_id);
 }
 
 GST_END_TEST;
-
-
 
 
 typedef struct _TestCaseDef
@@ -1322,7 +1343,6 @@ static Suite *
 camerabin_suite (void)
 {
   GstElementFactory *jpegenc_factory;
-  GstElementFactory *pngenc_factory;
   Suite *s = suite_create ("camerabin2");
   gint i;
   TCase *tc_generic = tcase_create ("generic");
@@ -1332,7 +1352,6 @@ camerabin_suite (void)
     GST_WARNING ("Skipping camerabin2 tests because jpegenc is missing");
     goto end;
   }
-  pngenc_factory = gst_element_factory_find ("pngenc");
 
   suite_add_tcase (s, tc_generic);
   tcase_add_checked_fixture (tc_generic, setup_wrappercamerabinsrc_videotestsrc,
@@ -1368,10 +1387,7 @@ camerabin_suite (void)
     tcase_add_test (tc_basic, test_image_custom_filter);
     tcase_add_test (tc_basic, test_video_custom_filter);
 
-    if (pngenc_factory)
-      tcase_add_test (tc_basic, test_image_custom_encoder_muxer);
-    else
-      GST_WARNING ("Skipping custom encoder test because pngenc is missing");
+    tcase_add_test (tc_basic, test_image_location_switching);
   }
 
 end:

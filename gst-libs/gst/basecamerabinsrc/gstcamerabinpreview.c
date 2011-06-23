@@ -31,6 +31,50 @@
 #include "gstcamerabinpreview.h"
 #include "gstbasecamerasrc.h"
 
+static void _gst_camerabin_preview_set_caps (GstCameraBinPreviewPipelineData *
+    preview, GstCaps * caps);
+
+static gboolean
+bus_callback (GstBus * bus, GstMessage * message, gpointer user_data)
+{
+  switch (GST_MESSAGE_TYPE (message)) {
+    case GST_MESSAGE_ERROR:{
+      GError *err;
+      GstCameraBinPreviewPipelineData *data;
+
+      data = user_data;
+
+      gst_message_parse_error (message, &err, NULL);
+      GST_WARNING ("Error from preview pipeline: %s", err->message);
+      g_error_free (err);
+
+      /* TODO Not sure if we should post an Error or Warning here */
+      GST_ELEMENT_ERROR (data, CORE, FAILED,
+          ("fatal error in preview pipeline, disposing the pipeline"), (NULL));
+
+      /* Possible error situations:
+       * 1) cond_wait pending. prevent deadlock by signalling the cond
+       * 2) preview_pipeline_post called with new buffer to handle. returns
+       *    because data->pipeline is set to null
+       * 3) new preview caps incoming. returns because data->pipeline is null
+       */
+
+      if (data->pipeline) {
+        gst_element_set_state (data->pipeline, GST_STATE_NULL);
+        gst_object_unref (data->pipeline);
+        data->pipeline = NULL;
+      }
+
+      g_cond_signal (data->processing_cond);
+
+      break;
+    }
+    default:
+      break;
+  }
+  return TRUE;
+}
+
 static GstFlowReturn
 gst_camerabin_preview_pipeline_new_preroll (GstAppSink * appsink,
     gpointer user_data)
@@ -66,6 +110,14 @@ gst_camerabin_preview_pipeline_new_buffer (GstAppSink * appsink,
         "This element has no bus, therefore no message sent!");
   }
 
+  g_mutex_lock (data->processing_lock);
+
+  data->processing--;
+  if (data->processing == 0)
+    g_cond_signal (data->processing_cond);
+
+  g_mutex_unlock (data->processing_lock);
+
   return GST_FLOW_OK;
 }
 
@@ -88,6 +140,7 @@ gst_camerabin_create_preview_pipeline (GstElement * element,
   GstElement *csp2;
   GstElement *vscale;
   gboolean added = FALSE;
+  GstBus *bus;
   GstAppSinkCallbacks callbacks = { 0, };
 
   data = g_new (GstCameraBinPreviewPipelineData, 1);
@@ -127,10 +180,20 @@ gst_camerabin_create_preview_pipeline (GstElement * element,
   gst_app_sink_set_callbacks ((GstAppSink *) data->appsink, &callbacks, data,
       NULL);
 
+  bus = gst_pipeline_get_bus (GST_PIPELINE (data->pipeline));
+  gst_bus_add_watch (bus, bus_callback, data);
+  gst_object_unref (bus);
+
   g_object_set (data->appsink, "sync", FALSE, NULL);
 
   data->element = element;
   data->filter = filter;
+
+  data->processing_lock = g_mutex_new ();
+  data->processing_cond = g_cond_new ();
+
+  data->pending_preview_caps = NULL;
+  data->processing = 0;
 
   return data;
 error:
@@ -163,6 +226,14 @@ void
 gst_camerabin_destroy_preview_pipeline (GstCameraBinPreviewPipelineData *
     preview)
 {
+  if (preview->processing_lock) {
+    g_mutex_free (preview->processing_lock);
+    preview->processing_lock = NULL;
+  }
+  if (preview->processing_cond) {
+    g_cond_free (preview->processing_cond);
+    preview->processing_cond = NULL;
+  }
   if (preview->pipeline) {
     gst_element_set_state (preview->pipeline, GST_STATE_NULL);
     gst_object_unref (preview->pipeline);
@@ -188,28 +259,36 @@ gst_camerabin_preview_pipeline_post (GstCameraBinPreviewPipelineData * preview,
   g_return_val_if_fail (preview->pipeline != NULL, FALSE);
   g_return_val_if_fail (buffer, FALSE);
 
+  g_mutex_lock (preview->processing_lock);
+  g_return_val_if_fail (preview->pipeline != NULL, FALSE);
+
+  if (preview->pending_preview_caps) {
+    if (preview->processing > 0) {
+      g_cond_wait (preview->processing_cond, preview->processing_lock);
+    }
+    _gst_camerabin_preview_set_caps (preview, preview->pending_preview_caps);
+    gst_caps_replace (&preview->pending_preview_caps, NULL);
+  }
+
+  preview->processing++;
+
   gst_app_src_push_buffer ((GstAppSrc *) preview->appsrc,
       gst_buffer_ref (buffer));
+
+  g_mutex_unlock (preview->processing_lock);
 
   return TRUE;
 }
 
-/**
- * gst_camerabin_preview_set_caps:
- * @preview: the #GstCameraBinPreviewPipelineData
- * @caps: the #GstCaps to be set
- *
- * The caps that preview buffers should have when posted
- * on the bus 
- */
-void
-gst_camerabin_preview_set_caps (GstCameraBinPreviewPipelineData * preview,
+static void
+_gst_camerabin_preview_set_caps (GstCameraBinPreviewPipelineData * preview,
     GstCaps * caps)
 {
   GstState state, pending;
   GstStateChangeReturn ret;
 
   g_return_if_fail (preview != NULL);
+  g_return_if_fail (preview->pipeline != NULL);
 
   ret = gst_element_get_state (preview->pipeline, &state, &pending, 0);
   if (ret == GST_STATE_CHANGE_FAILURE) {
@@ -217,10 +296,34 @@ gst_camerabin_preview_set_caps (GstCameraBinPreviewPipelineData * preview,
     state = GST_STATE_PLAYING;
     pending = GST_STATE_VOID_PENDING;
   }
-
   gst_element_set_state (preview->pipeline, GST_STATE_NULL);
   g_object_set (preview->capsfilter, "caps", caps, NULL);
   if (pending != GST_STATE_VOID_PENDING)
     state = pending;
   gst_element_set_state (preview->pipeline, state);
+}
+
+/**
+ * gst_camerabin_preview_set_caps:
+ * @preview: the #GstCameraBinPreviewPipelineData
+ * @caps: the #GstCaps to be set (a new ref will be taken)
+ *
+ * The caps that preview buffers should have when posted
+ * on the bus
+ */
+void
+gst_camerabin_preview_set_caps (GstCameraBinPreviewPipelineData * preview,
+    GstCaps * caps)
+{
+  g_return_if_fail (preview != NULL);
+
+  g_mutex_lock (preview->processing_lock);
+
+  if (preview->processing == 0) {
+    _gst_camerabin_preview_set_caps (preview, caps);
+  } else {
+    GST_DEBUG ("Preview pipeline busy, storing new caps as pending");
+    gst_caps_replace (&preview->pending_preview_caps, caps);
+  }
+  g_mutex_unlock (preview->processing_lock);
 }

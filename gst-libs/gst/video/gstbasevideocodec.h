@@ -100,9 +100,6 @@ struct _GstVideoState
 
   int bytes_per_picture;
 
-  //GstSegment segment;
-
-  int picture_number;
   GstBuffer *codec_data;
 
 };
@@ -147,10 +144,12 @@ struct _GstBaseVideoCodec
   GstVideoState state;
   GstSegment segment;
 
-  GstCaps *caps;
-
   gdouble proportion;
   GstClockTime earliest_time;
+  gboolean discont;
+
+  gint64 bytes;
+  gint64 time;
 
   /* FIXME before moving to base */
   void *padding[GST_PADDING_LARGE];
@@ -159,15 +158,6 @@ struct _GstBaseVideoCodec
 struct _GstBaseVideoCodecClass
 {
   GstElementClass element_class;
-
-  gboolean (*start) (GstBaseVideoCodec *codec);
-  gboolean (*stop) (GstBaseVideoCodec *codec);
-  gboolean (*reset) (GstBaseVideoCodec *codec);
-  GstFlowReturn (*parse_data) (GstBaseVideoCodec *codec, gboolean at_eos);
-  int (*scan_for_sync) (GstAdapter *adapter, gboolean at_eos,
-      int offset, int n);
-  GstFlowReturn (*shape_output) (GstBaseVideoCodec *codec, GstVideoFrame *frame);
-  GstCaps *(*get_caps) (GstBaseVideoCodec *codec);
 
   /* FIXME before moving to base */
   void *padding[GST_PADDING_LARGE];
@@ -182,9 +172,9 @@ void gst_base_video_codec_free_frame (GstVideoFrame *frame);
 gboolean gst_base_video_rawvideo_convert (GstVideoState *state,
     GstFormat src_format, gint64 src_value,
     GstFormat * dest_format, gint64 *dest_value);
-gboolean gst_base_video_encoded_video_convert (GstVideoState *state,
-    GstFormat src_format, gint64 src_value,
-    GstFormat * dest_format, gint64 *dest_value);
+gboolean gst_base_video_encoded_video_convert (GstVideoState * state,
+    gint64 bytes, gint64 time, GstFormat src_format,
+    gint64 src_value, GstFormat * dest_format, gint64 * dest_value);
 
 GstClockTime gst_video_state_get_timestamp (const GstVideoState *state,
     GstSegment *segment, int frame_number);

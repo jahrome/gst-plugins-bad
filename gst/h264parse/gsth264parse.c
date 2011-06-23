@@ -358,10 +358,7 @@ gst_h264_parse_get_pps (GstH264Parse * h, guint8 pps_id)
 {
   GstH264Pps *pps;
   g_return_val_if_fail (h != NULL, NULL);
-  if (pps_id >= MAX_PPS_COUNT) {
-    GST_DEBUG_OBJECT (h, "requested pps_id=%04x out of range", pps_id);
-    return NULL;
-  }
+
   pps = h->pps_buffers[pps_id];
   if (pps == NULL) {
     GST_DEBUG_OBJECT (h, "Creating pps with pps_id=%04x", pps_id);
@@ -665,10 +662,15 @@ gst_nal_decode_sps (GstH264Parse * h, GstNalBs * bs)
 static gboolean
 gst_nal_decode_pps (GstH264Parse * h, GstNalBs * bs)
 {
-  guint8 pps_id;
+  gint pps_id;
   GstH264Pps *pps = NULL;
 
   pps_id = gst_nal_bs_read_ue (bs);
+  if (pps_id >= MAX_PPS_COUNT) {
+    GST_DEBUG_OBJECT (h, "requested pps_id=%04x out of range", pps_id);
+    return FALSE;
+  }
+
   pps = gst_h264_parse_get_pps (h, pps_id);
   if (pps == NULL) {
     return FALSE;
@@ -1132,11 +1134,11 @@ gst_h264_parse_make_codec_data (GstH264Parse * h264parse)
       num_sps++;
       /* size bytes also count */
       sps_size += GST_BUFFER_SIZE (nal) - 4 + 2;
-      if (GST_BUFFER_SIZE (nal) >= 7) {
+      if (GST_BUFFER_SIZE (nal) >= 8) {
         found = TRUE;
-        profile_idc = (GST_BUFFER_DATA (nal))[4];
-        profile_comp = (GST_BUFFER_DATA (nal))[5];
-        level_idc = (GST_BUFFER_DATA (nal))[6];
+        profile_idc = (GST_BUFFER_DATA (nal))[5];
+        profile_comp = (GST_BUFFER_DATA (nal))[6];
+        level_idc = (GST_BUFFER_DATA (nal))[7];
       }
     }
   }
@@ -1311,16 +1313,18 @@ gst_h264_parse_update_src_caps (GstH264Parse * h264parse, GstCaps * caps)
     alignment = "au";
   } else {
     if (h264parse->packetized) {
-      /* if packetized input, take upstream alignment if validly provided,
-       * otherwise assume au aligned ... */
-      alignment = gst_structure_get_string (structure, "alignment");
-      if (!alignment || (alignment &&
-              strcmp (alignment, "au") != 0 &&
-              strcmp (alignment, "nal") != 0)) {
-        if (h264parse->split_packetized)
-          alignment = "nal";
-        else
+      if (h264parse->split_packetized)
+        alignment = "nal";
+      else {
+        /* if packetized input is not split,
+         * take upstream alignment if validly provided,
+         * otherwise assume au aligned ... */
+        alignment = gst_structure_get_string (structure, "alignment");
+        if (!alignment || (alignment &&
+                strcmp (alignment, "au") != 0 &&
+                strcmp (alignment, "nal") != 0)) {
           alignment = "au";
+        }
       }
     } else {
       alignment = "nal";
@@ -1600,6 +1604,8 @@ gst_h264_parse_push_codec_buffer (GstH264Parse * h264parse, GstBuffer * nal,
 static GstFlowReturn
 gst_h264_parse_push_buffer (GstH264Parse * h264parse, GstBuffer * buf)
 {
+  GstFlowReturn res = GST_FLOW_OK;
+
   /* We can send pending events if this is the first call, since we now have
    * caps for the srcpad */
   if (G_UNLIKELY (h264parse->pending_segment != NULL)) {
@@ -1614,6 +1620,33 @@ gst_h264_parse_push_buffer (GstH264Parse * h264parse, GstBuffer * buf)
 
       g_list_free (h264parse->pending_events);
       h264parse->pending_events = NULL;
+    }
+  }
+
+  if (G_UNLIKELY (h264parse->width == 0 || h264parse->height == 0)) {
+    GST_DEBUG ("Delaying actual push until we are configured");
+    h264parse->gather = g_list_append (h264parse->gather, buf);
+    goto beach;
+  }
+
+  if (G_UNLIKELY (h264parse->gather)) {
+    GList *pendingbuffers = h264parse->gather;
+    GList *tmp;
+
+    GST_DEBUG ("Pushing out pending buffers");
+
+    /* Yes, we're recursively calling in... */
+    h264parse->gather = NULL;
+    for (tmp = pendingbuffers; tmp; tmp = tmp->next) {
+      res = gst_h264_parse_push_buffer (h264parse, (GstBuffer *) tmp->data);
+      if (res != GST_FLOW_OK && res != GST_FLOW_NOT_LINKED)
+        break;
+    }
+    g_list_free (pendingbuffers);
+
+    if (res != GST_FLOW_OK && res != GST_FLOW_NOT_LINKED) {
+      gst_buffer_unref (buf);
+      goto beach;
     }
   }
 
@@ -1738,7 +1771,10 @@ gst_h264_parse_push_buffer (GstH264Parse * h264parse, GstBuffer * buf)
   }
 
   gst_buffer_set_caps (buf, h264parse->src_caps);
-  return gst_pad_push (h264parse->srcpad, buf);
+  res = gst_pad_push (h264parse->srcpad, buf);
+
+beach:
+  return res;
 }
 
 /* takes over ownership of nal and returns fresh buffer */

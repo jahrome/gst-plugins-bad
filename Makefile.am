@@ -78,6 +78,7 @@ CRUFT_DIRS = \
 	$(top_srcdir)/gst/amrparse \
 	$(top_srcdir)/gst/flacparse \
 	$(top_srcdir)/gst/imagefreeze \
+	$(top_srcdir)/gst/invtelecine \
 	$(top_srcdir)/gst/qtmux \
 	$(top_srcdir)/gst/selector \
 	$(top_srcdir)/gst/shapewipe \
@@ -87,6 +88,7 @@ CRUFT_DIRS = \
 	$(top_srcdir)/tests/examples/switch \
 	$(top_srcdir)/tests/examples/jack \
 	$(top_srcdir)/ext/alsaspdif \
+	$(top_srcdir)/ext/amrwbenc \
 	$(top_srcdir)/ext/ivorbis \
 	$(top_srcdir)/ext/jack \
 	$(top_srcdir)/ext/metadata \

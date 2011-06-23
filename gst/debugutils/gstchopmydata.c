@@ -300,9 +300,15 @@ gst_chop_my_data_process (GstChopMyData * chopmydata, gboolean flush)
   }
 
   if (flush) {
-    buffer = gst_adapter_take_buffer (chopmydata->adapter,
-        gst_adapter_available (chopmydata->adapter));
-    ret = gst_pad_push (chopmydata->srcpad, buffer);
+    guint min_size = chopmydata->min_size;
+
+    while (gst_adapter_available (chopmydata->adapter) >= min_size) {
+      buffer = gst_adapter_take_buffer (chopmydata->adapter, min_size);
+      ret = gst_pad_push (chopmydata->srcpad, buffer);
+      if (ret != GST_FLOW_OK)
+        break;
+    }
+    gst_adapter_clear (chopmydata->adapter);
   }
 
   return ret;
@@ -337,11 +343,10 @@ gst_chop_my_data_sink_event (GstPad * pad, GstEvent * event)
 
   switch (GST_EVENT_TYPE (event)) {
     case GST_EVENT_FLUSH_START:
-      /* FIXME: I don't think it should be doing this in FLUSH_START */
-      gst_chop_my_data_process (chopmydata, TRUE);
       res = gst_pad_push_event (chopmydata->srcpad, event);
       break;
     case GST_EVENT_FLUSH_STOP:
+      gst_adapter_clear (chopmydata->adapter);
       res = gst_pad_push_event (chopmydata->srcpad, event);
       break;
     case GST_EVENT_NEWSEGMENT:

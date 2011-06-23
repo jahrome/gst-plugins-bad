@@ -148,16 +148,14 @@ gst_nal_bs_read_se (GstNalBs * bs)
 /* end parser helper */
 
 static void
-gst_h264_params_store_nal (GstH264Params * params, GstBuffer ** store, gint id,
-    GstNalBs * bs)
+gst_h264_params_store_nal (GstH264Params * params, GstBuffer ** store,
+    gint store_size, gint id, GstNalBs * bs)
 {
   const guint8 *data;
   GstBuffer *buf;
   guint size;
 
-  g_return_if_fail (MAX_SPS_COUNT == MAX_PPS_COUNT);
-
-  if (id >= MAX_SPS_COUNT) {
+  if (id >= store_size) {
     GST_DEBUG_OBJECT (params->el,
         "unable to store nal, id out-of-range %d", id);
     return;
@@ -206,12 +204,6 @@ gst_h264_params_get_pps (GstH264Params * params, guint8 pps_id, gboolean set)
   GstH264ParamsPPS *pps;
 
   g_return_val_if_fail (params != NULL, NULL);
-
-  if (G_UNLIKELY (pps_id >= MAX_PPS_COUNT)) {
-    GST_WARNING_OBJECT (params->el,
-        "requested pps_id=%04x out of range", pps_id);
-    return NULL;
-  }
 
   pps = &params->pps_buffers[pps_id];
   if (set) {
@@ -395,7 +387,8 @@ gst_h264_params_decode_sps (GstH264Params * params, GstNalBs * bs)
   if (G_UNLIKELY (sps == NULL))
     return FALSE;
 
-  gst_h264_params_store_nal (params, params->sps_nals, sps_id, bs);
+  gst_h264_params_store_nal (params, params->sps_nals, MAX_SPS_COUNT, sps_id,
+      bs);
 
   /* could be redefined mid stream, arrange for clear state */
   memset (sps, 0, sizeof (*sps));
@@ -557,10 +550,16 @@ gst_h264_params_decode_sps (GstH264Params * params, GstNalBs * bs)
 static gboolean
 gst_h264_params_decode_pps (GstH264Params * params, GstNalBs * bs)
 {
-  guint8 pps_id;
+  gint pps_id;
   GstH264ParamsPPS *pps = NULL;
 
   pps_id = gst_nal_bs_read_ue (bs);
+  if (G_UNLIKELY (pps_id >= MAX_PPS_COUNT)) {
+    GST_WARNING_OBJECT (params->el,
+        "requested pps_id=%04x out of range", pps_id);
+    return FALSE;
+  }
+
 
   pps = gst_h264_params_get_pps (params, pps_id, FALSE);
   if (G_UNLIKELY (pps == NULL))
@@ -570,7 +569,8 @@ gst_h264_params_decode_pps (GstH264Params * params, GstNalBs * bs)
   pps->valid = TRUE;
   params->pps = pps;
 
-  gst_h264_params_store_nal (params, params->pps_nals, pps_id, bs);
+  gst_h264_params_store_nal (params, params->pps_nals, MAX_PPS_COUNT, pps_id,
+      bs);
 
   pps->sps_id = gst_nal_bs_read_ue (bs);
   GST_LOG_OBJECT (params->el, "pps %d referencing sps %d", pps_id, pps->sps_id);

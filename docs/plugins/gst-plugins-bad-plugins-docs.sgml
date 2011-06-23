@@ -19,7 +19,6 @@
     <title>gst-plugins-bad Elements</title>
     <xi:include href="xml/element-aiffparse.xml" />
     <xi:include href="xml/element-aiffmux.xml" />
-    <xi:include href="xml/element-amrwbenc.xml" />
     <xi:include href="xml/element-assrender.xml" />
     <xi:include href="xml/element-autoconvert.xml" />
     <xi:include href="xml/element-bulge.xml" />
@@ -90,7 +89,9 @@
     <xi:include href="xml/element-pyramidsegment.xml" />
     <xi:include href="xml/element-rsvgdec.xml" />
     <xi:include href="xml/element-rsvgoverlay.xml" />
-    <xi:include href="xml/element-rtpdtmfdepay.xml" />
+    <xi:include href="xml/element-rtmpsink.xml" />
+    <xi:include href="xml/element-rtmpsrc.xml" />
+    <xi:include href="xml/element-rtpmux.xml" />
     <xi:include href="xml/element-rtpdtmfsrc.xml" />
     <xi:include href="xml/element-rtpdtmfmux.xml" />
     <xi:include href="xml/element-rtpmux.xml" />
@@ -101,6 +102,9 @@
     <xi:include href="xml/element-shmsrc.xml" />
     <xi:include href="xml/element-sdpdemux.xml" />
     <xi:include href="xml/element-solarize.xml" />
+    <xi:include href="xml/element-spacescope.xml" />
+    <xi:include href="xml/element-spectrascope.xml" />
+    <xi:include href="xml/element-synaescope.xml" />
     <xi:include href="xml/element-speed.xml" />
     <xi:include href="xml/element-sphere.xml" />
     <xi:include href="xml/element-square.xml" />
@@ -121,16 +125,19 @@
     <xi:include href="xml/element-waterripple.xml" />
     <xi:include href="xml/element-wildmidi.xml" />
     <xi:include href="xml/element-zbar.xml" />
+    <xi:include href="xml/element-voaacenc.xml" />
+    <xi:include href="xml/element-voamrwbenc.xml" />
     <xi:include href="xml/element-vp8dec.xml" />
     <xi:include href="xml/element-vp8enc.xml" />
+    <xi:include href="xml/element-wavescope.xml" />
   </chapter>
 
   <chapter>
     <title>gst-plugins-bad Plugins</title>
     <xi:include href="xml/plugin-aiff.xml" />
+    <xi:include href="xml/plugin-audiovisualizers.xml" />
     <xi:include href="xml/plugin-autoconvert.xml" />
     <xi:include href="xml/plugin-legacyresample.xml" />
-    <xi:include href="xml/plugin-amrwbenc.xml" />
     <xi:include href="xml/plugin-assrender.xml" />
     <xi:include href="xml/plugin-bayer.xml" />
     <xi:include href="xml/plugin-bz2.xml" />
@@ -191,6 +198,7 @@
     <xi:include href="xml/plugin-real.xml" />
     <xi:include href="xml/plugin-rfbsrc.xml" />
     <xi:include href="xml/plugin-rsvg.xml" />
+    <xi:include href="xml/plugin-rtmp.xml" />
     <xi:include href="xml/plugin-rtpmux.xml" />
     <xi:include href="xml/plugin-scaletempo.xml" />
     <xi:include href="xml/plugin-sdl.xml" />
@@ -210,6 +218,8 @@
     <xi:include href="xml/plugin-vmnc.xml" />
     <xi:include href="xml/plugin-wildmidi.xml" />
     <xi:include href="xml/plugin-xvid.xml" />
+    <xi:include href="xml/plugin-voaacenc.xml" />
+    <xi:include href="xml/plugin-voamrwbenc.xml" />
     <xi:include href="xml/plugin-vp8.xml" />
     <xi:include href="xml/plugin-zbar.xml" />
   </chapter>

@@ -21,6 +21,7 @@
 #define _GST_DECKLINK_SRC_H_
 
 #include <gst/gst.h>
+#include "gstdecklink.h"
 #include "DeckLinkAPI.h"
 
 G_BEGIN_DECLS
@@ -56,10 +57,10 @@ struct _GstDecklinkSrc
   GstTask *task;
   GStaticRecMutex task_mutex;
 
-  int num_audio_samples;
+  guint64 num_audio_samples;
 
   GstCaps *video_caps;
-  int num_frames;
+  guint64 num_frames;
   int fps_n;
   int fps_d;
   int width;
@@ -69,7 +70,8 @@ struct _GstDecklinkSrc
 
   /* properties */
   gboolean copy_data;
-  int mode;
+  GstDecklinkModeEnum mode;
+  GstDecklinkConnectionEnum connection;
 };
 
 struct _GstDecklinkSrcClass

@@ -28,17 +28,31 @@ gst_aiff_parse_get_type
 </SECTION>
 
 <SECTION>
-<FILE>element-amrwbenc</FILE>
-<TITLE>amrwbenc</TITLE>
-GstAmrwbEnc
+<FILE>element-voaacenc</FILE>
+<TITLE>voaacenc</TITLE>
+GstVoAacEnc
 <SUBSECTION Standard>
-GstAmrwbEncClass
-GST_AMRWBENC
-GST_AMRWBENC_CLASS
-GST_IS_AMRWBENC
-GST_IS_AMRWBENC_CLASS
-GST_TYPE_AMRWBENC
-gst_amrwbenc_get_type
+GstVoAacEncClass
+GST_VOAACENC
+GST_VOAACENC_CLASS
+GST_IS_VOAACENC
+GST_IS_VOAACENC_CLASS
+GST_TYPE_VOAACENC
+gst_voaacenc_get_type
+</SECTION>
+
+<SECTION>
+<FILE>element-voamrwbenc</FILE>
+<TITLE>voamrwbenc</TITLE>
+GstVoAmrwbEnc
+<SUBSECTION Standard>
+GstVoAmrwbEncClass
+GST_VOAMRWBENC
+GST_VOAMRWBENC_CLASS
+GST_IS_VOAMRWBENC
+GST_IS_VOAMRWBENC_CLASS
+GST_TYPE_VOAMRWBENC
+gst_voamrwbenc_get_type
 </SECTION>
 
 <SECTION>
@@ -1147,6 +1161,34 @@ gst_rsvg_dec_get_type
 </SECTION>
 
 <SECTION>
+<FILE>element-rtmpsink</FILE>
+<TITLE>rtmpsink</TITLE>
+GstRTMPSink
+<SUBSECTION Standard>
+GstRTMPSinkClass
+GST_RTMP_SINK
+GST_IS_RTMP_SINK
+GST_TYPE_RTMP_SINK
+gst_rtmp_sink_get_type
+GST_RTMP_SINK_CLASS
+GST_IS_RTMP_SINK_CLASS
+</SECTION>
+
+<SECTION>
+<FILE>element-rtmpsrc</FILE>
+<TITLE>rtmpsrc</TITLE>
+GstRTMPSrc
+<SUBSECTION Standard>
+GstRTMPSrcClass
+GST_RTMP_SRC
+GST_IS_RTMP_SRC
+GST_TYPE_RTMP_SRC
+gst_rtmp_src_get_type
+GST_RTMP_SRC_CLASS
+GST_IS_RTMP_SRC_CLASS
+</SECTION>
+
+<SECTION>
 <FILE>element-rtpdtmfdepay</FILE>
 <TITLE>rtpdtmfdepay</TITLE>
 GstRtpDTMFDepay
@@ -1319,6 +1361,34 @@ gst_solarize_plugin_init
 </SECTION>
 
 <SECTION>
+<FILE>element-spacescope</FILE>
+<TITLE>spacescope</TITLE>
+GstSpaceScope
+<SUBSECTION Standard>
+GstSpaceScopeClass
+GST_SPACE_SCOPE
+GST_SPACE_SCOPE_CLASS
+GST_IS_SPACE_SCOPE
+GST_IS_SPACE_SCOPE_CLASS
+GST_TYPE_SPACE_SCOPE
+gst_space_scope_get_type
+</SECTION>
+
+<SECTION>
+<FILE>element-spectrascope</FILE>
+<TITLE>spectrascope</TITLE>
+GstSpectraScope
+<SUBSECTION Standard>
+GstSpectraScopeClass
+GST_SPECTRA_SCOPE
+GST_SPECTRA_SCOPE_CLASS
+GST_IS_SPECTRA_SCOPE
+GST_IS_SPECTRA_SCOPE_CLASS
+GST_TYPE_SPECTRA_SCOPE
+gst_spectra_scope_get_type
+</SECTION>
+
+<SECTION>
 <FILE>element-speed</FILE>
 <TITLE>speed</TITLE>
 GstSpeed
@@ -1393,6 +1463,20 @@ GST_IS_STRETCH_CLASS
 GST_TYPE_STRETCH
 gst_stretch_get_type
 gst_stretch_plugin_init
+</SECTION>
+
+<SECTION>
+<FILE>element-synaescope</FILE>
+<TITLE>synaescope</TITLE>
+GstSynaeScope
+<SUBSECTION Standard>
+GstSynaeScopeClass
+GST_SYNAE_SCOPE
+GST_SYNAE_SCOPE_CLASS
+GST_IS_SYNAE_SCOPE
+GST_IS_SYNAE_SCOPE_CLASS
+GST_TYPE_SYNAE_SCOPE
+gst_synae_scope_get_type
 </SECTION>
 
 <FILE>element-templatematch</FILE>
@@ -1554,6 +1638,20 @@ GST_IS_WATER_RIPPLE_CLASS
 GST_TYPE_WATER_RIPPLE
 gst_water_ripple_get_type
 gst_water_ripple_plugin_init
+</SECTION>
+
+<SECTION>
+<FILE>element-wavescope</FILE>
+<TITLE>wavescope</TITLE>
+GstWaveScope
+<SUBSECTION Standard>
+GstWaveScopeClass
+GST_WAVE_SCOPE
+GST_WAVE_SCOPE_CLASS
+GST_IS_WAVE_SCOPE
+GST_IS_WAVE_SCOPE_CLASS
+GST_TYPE_WAVE_SCOPE
+gst_wave_scope_get_type
 </SECTION>
 
 <SECTION>

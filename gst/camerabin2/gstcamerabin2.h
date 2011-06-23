@@ -42,10 +42,9 @@ struct _GstCameraBin
   GstElement *user_src;
   gulong src_capture_notify_id;
 
-  GstElement *encodebin;
-  gulong encodebin_signal_id;
+  GstElement *video_encodebin;
+  gulong video_encodebin_signal_id;
   GstElement *videosink;
-  gulong videosink_probe;
   GstElement *videobin_queue;
   GstElement *videobin_capsfilter;
 
@@ -53,7 +52,9 @@ struct _GstCameraBin
   GstElement *viewfinderbin_queue;
   GstElement *viewfinderbin_capsfilter;
 
-  GstElement *imagebin;
+  GstElement *image_encodebin;
+  gulong image_encodebin_signal_id;
+  GstElement *imagesink;
   GstElement *imagebin_queue;
   GstElement *imagebin_capsfilter;
 
@@ -73,19 +74,25 @@ struct _GstCameraBin
 
   gint processing_counter; /* atomic int */
 
-  /* Index of the auto incrementing file index for video recordings */
-  gint video_index;
+  /* Index of the auto incrementing file index for captures */
+  gint capture_index;
 
-  gboolean profile_switch;
+  /* stores list of image locations to be pushed to the image sink
+   * as file location change notifications, they are pushed before
+   * each buffer capture */
+  GSList *image_location_list;
+
+  gboolean video_profile_switch;
+  gboolean image_profile_switch;
 
   /* properties */
   gint mode;
-  gchar *video_location;
-  gchar *image_location;
+  gchar *location;
   gboolean post_previews;
   GstCaps *preview_caps;
   GstElement *preview_filter;
   GstEncodingProfile *video_profile;
+  GstEncodingProfile *image_profile;
   gfloat zoom;
   gfloat max_zoom;
 

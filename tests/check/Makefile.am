@@ -14,7 +14,12 @@ TESTS_ENVIRONMENT = \
 	GST_PLUGIN_SYSTEM_PATH=					\
 	GST_PLUGIN_PATH=$(top_builddir)/gst:$(top_builddir)/sys:$(top_builddir)/ext:$(GST_PLUGINS_FFMPEG_DIR):$(GST_PLUGINS_UGLY_DIR):$(GST_PLUGINS_GOOD_DIR):$(GST_PLUGINS_BASE_DIR):$(GST_PLUGINS_DIR) \
 	GST_PLUGIN_LOADING_WHITELIST="gstreamer@$(GST_PLUGINS_DIR):gst-plugins-base@$(GSTPB_PLUGINS_DIR):gst-plugins-good:gst-plugins-ugly:gst-ffmpeg:gst-plugins-bad@$(top_builddir)" \
-	GST_STATE_IGNORE_ELEMENTS="apexsink camerabin camerabin2 cdaudio dc1394src dccpclientsrc dccpclientsink dccpserversrc dccpserversink dvbsrc dvbbasebin dfbvideosink festival gsettingsvideosrc gsettingsvideosink gsettingsaudiosrc gsettingsaudiosink nassink rsndvdbin sdlaudiosink sdlvideosink vcdsrc rfbsrc vdpauyuvvideo vdpauvideoyuv vdpaumpegdec vdpaumpeg4dec vdpauh264dec vdpauvideopostprocess vdpausink neonhttpsrc"
+	GST_STATE_IGNORE_ELEMENTS="apexsink camerabin camerabin2 cdaudio dc1394src \
+	    dccpclientsrc dccpclientsink dccpserversrc dccpserversink decklinksrc \
+	    decklinksink dvbsrc dvbbasebin dfbvideosink festival gsettingsvideosrc \
+	    gsettingsvideosink gsettingsaudiosrc gsettingsaudiosink linsyssdisrc linsyssdisink nassink \
+	    rsndvdbin sdlaudiosink sdlvideosink vcdsrc rfbsrc vdpauyuvvideo vdpauvideoyuv \
+	    vdpaumpegdec vdpaumpeg4dec vdpauh264dec vdpauvideopostprocess vdpausink neonhttpsrc"
 
 plugindir = $(libdir)/gstreamer-@GST_MAJORMINOR@
 
@@ -46,6 +51,12 @@ else
 check_faad =
 endif
 
+if USE_VOAACENC
+check_voaacenc = elements/voaacenc
+else
+check_voaacenc =
+endif
+
 if USE_EXIF
 check_jifmux = elements/jifmux
 else
@@ -73,13 +84,13 @@ endif
 if USE_NEON
 check_neon = elements/neonhttpsrc
 else
-check_neon = 
+check_neon =
 endif
 
 if USE_OFA
 check_ofa = elements/ofa
 else
-check_ofa = 
+check_ofa =
 endif
 
 if USE_SCHRO
@@ -127,7 +138,8 @@ endif
 VALGRIND_TO_FIX = \
 	elements/mpeg2enc \
 	elements/mplex    \
-	elements/zbar
+	elements/zbar     \
+	pipeline/colorspace
 
 # valgrind testing
 VALGRIND_TESTS_DISABLE = \
@@ -135,7 +147,6 @@ VALGRIND_TESTS_DISABLE = \
 
 if BUILD_EXPERIMENTAL
 EXPERIMENTAL_CHECKS=elements/camerabin2 \
-		elements/imagecapturebin \
 		elements/viewfinderbin
 endif
 
@@ -149,6 +160,7 @@ check_PROGRAMS = \
 	$(check_assrender) \
 	$(check_faac)  \
 	$(check_faad)  \
+	$(check_voaacenc) \
 	$(check_mpeg2enc)  \
 	$(check_mplex)     \
 	$(check_ofa)        \
@@ -157,16 +169,22 @@ check_PROGRAMS = \
 	elements/autoconvert \
 	elements/autovideoconvert \
 	elements/asfmux \
+	elements/baseaudiovisualizer \
 	elements/camerabin \
 	elements/dataurisrc \
 	elements/legacyresample \
         $(check_jifmux) \
 	elements/jpegparse \
 	$(check_logoinsert) \
+	elements/h263parse \
+	elements/h264parse \
+	elements/mpegvideoparse \
+	elements/mpeg4videoparse \
 	elements/mxfdemux \
 	elements/mxfmux \
 	elements/id3mux \
 	pipelines/mxf \
+	pipelines/colorspace \
 	$(check_mimic) \
 	elements/rtpmux \
 	$(check_schro) \
@@ -183,6 +201,39 @@ AM_CFLAGS = $(GST_CHECK_CFLAGS) $(GST_OPTION_CFLAGS) \
 		-DGST_TEST_FILES_PATH="\"$(TEST_FILES_DIRECTORY)\"" \
 		-UG_DISABLE_ASSERT -UG_DISABLE_CAST_CHECKS
 LDADD = $(GST_CHECK_LIBS)
+
+# parser unit test convenience lib
+noinst_LTLIBRARIES = libparser.la
+libparser_la_SOURCES = elements/parser.c elements/parser.h
+libparser_la_CFLAGS = \
+	-I$(top_srcdir)/tests/check \
+	$(GST_CHECK_CFLAGS) $(GST_OPTION_CFLAGS)
+
+elements_mpegvideoparse_LDADD = libparser.la $(LDADD)
+
+elements_mpeg4videoparse_LDADD = libparser.la $(LDADD)
+
+elements_h263parse_LDADD = libparser.la $(LDADD)
+
+elements_h264parse_LDADD = libparser.la $(LDADD)
+
+elements_voaacenc_CFLAGS = \
+	$(GST_PLUGINS_BASE_CFLAGS) \
+	$(GST_BASE_CFLAGS) $(GST_CFLAGS) $(AM_CFLAGS)
+elements_voaacenc_LDADD = \
+	$(GST_PLUGINS_BASE_LIBS) $(GST_BASE_LIBS) $(GST_LIBS) $(LDADD) \
+	-lgstaudio-@GST_MAJORMINOR@
+
+elements_baseaudiovisualizer_SOURCES = elements/baseaudiovisualizer.c \
+	$(top_srcdir)/gst/audiovisualizers/gstbaseaudiovisualizer.c \
+	$(top_srcdir)/gst/audiovisualizers/gstbaseaudiovisualizer.h
+elements_baseaudiovisualizer_CFLAGS = $(GST_PLUGINS_BAD_CFLAGS) \
+	-I$(top_srcdir)/gst/audiovisualizers $(GST_PLUGINS_BASE_CFLAGS) \
+	$(GST_BASE_CFLAGS) $(GST_CONTROLLER_CFLAGS) $(GST_CFLAGS) $(AM_CFLAGS)
+elements_baseaudiovisualizer_LDADD = \
+	$(GST_PLUGINS_BASE_LIBS) -lgstaudio-@GST_MAJORMINOR@  \
+	-lgstvideo-@GST_MAJORMINOR@ 	$(GST_BASE_LIBS) $(GST_CONTROLLER_LIBS) \
+	$(GST_LIBS) $(LDADD)
 
 elements_camerabin_CFLAGS = \
 	$(GST_PLUGINS_BAD_CFLAGS) $(GST_PLUGINS_BASE_CFLAGS) \
@@ -205,13 +256,6 @@ elements_camerabin2_LDADD = \
         $(GST_PLUGINS_BASE_LIBS) $(GST_BASE_LIBS) $(GST_LIBS) $(LDADD)
 elements_camerabin2_SOURCES = elements/camerabin2.c
 
-elements_imagecapturebin_CFLAGS = \
-	$(GST_PLUGINS_BAD_CFLAGS) $(GST_PLUGINS_BASE_CFLAGS) \
-	$(GST_BASE_CFLAGS) $(GST_CFLAGS) $(AM_CFLAGS) -DGST_USE_UNSTABLE_API
-elements_imagecapturebin_LDADD = \
-	$(GST_PLUGINS_BASE_LIBS) -lgstapp-@GST_MAJORMINOR@ \
-	$(GST_BASE_LIBS) $(GST_LIBS) $(LDADD)
-elements_imagecapturebin_SOURCES = elements/imagecapturebin.c
 endif
 
 elements_jifmux_CFLAGS = $(GST_PLUGINS_BASE_CFLAGS) $(EXIF_CFLAGS) $(AM_CFLAGS)
